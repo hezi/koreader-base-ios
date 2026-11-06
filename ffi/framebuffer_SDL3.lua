@@ -22,7 +22,12 @@ function framebuffer:init()
         -- Input dimensions are *window* sizes
         SDL.open(self.w, self.h, self.x, self.y)
         -- Open might fudge them a bit on the emu, so, resync
-        self.w, self.h = SDL.win_w, SDL.win_h
+        if os.getenv("KO_IOS") == "1" then
+            -- HiDPI + safe-area canvas, not the point-sized UIWindow.
+            self.w, self.h = SDL.w, SDL.h
+        else
+            self.w, self.h = SDL.win_w, SDL.win_h
+        end
         self:_newBB()
     else
         self.bb = BB.new(600, 800)

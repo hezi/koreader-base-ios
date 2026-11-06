@@ -30,6 +30,9 @@ list(APPEND CMAKE_ARGS
     -DENABLE_UNZIP=FALSE
     -DENABLE_WERROR=FALSE
     -DENABLE_XATTR=FALSE
+    # Don't auto-detect host/Homebrew zstd while cross-compiling for iOS.
+    # (FIND_PACKAGE(ZSTD) can succeed, then the iOS compile can't see zstd.h.)
+    -DENABLE_ZSTD=FALSE
     # Prevent md library fallback because OpenSSL is not used.
     -DLIBMD_FOUND=FALSE
 )

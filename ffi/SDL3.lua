@@ -115,6 +115,14 @@ function S.open(w, h, x, y)
     SDL.SDL_EnableScreenSaver()
     SDL.SDL_SetHint("SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR", "0")
 
+    -- iPhone (esp. 16 Pro Max): defer system edge gestures so a swipe
+    -- from the top opens KOReader's menu instead of Notification Center,
+    -- and a swipe from the bottom isn't eaten by the home indicator.
+    -- "2" = dim the indicator; first swipe goes to the app, second Home.
+    if os.getenv("KO_IOS") == "1" then
+        SDL.SDL_SetHint("SDL_IOS_HIDE_HOME_INDICATOR", "2")
+    end
+
     -- set up screen (window)
     local pos_x = tonumber(os.getenv("KOREADER_WINDOW_POS_X")) or x or SDL.SDL_WINDOWPOS_UNDEFINED
     local pos_y = tonumber(os.getenv("KOREADER_WINDOW_POS_Y")) or y or SDL.SDL_WINDOWPOS_UNDEFINED
@@ -426,8 +434,21 @@ function S.waitForEvent(sec, usec)
             end
         end
     elseif event.type == SDL.SDL_EVENT_MOUSE_BUTTON_UP and event.button.which ~= SDL.SDL_TOUCH_MOUSEID
-        or event.type == SDL.SDL_EVENT_FINGER_UP then
+        or event.type == SDL.SDL_EVENT_FINGER_UP
+        or event.type == SDL.SDL_EVENT_FINGER_CANCELED then
+        -- iOS sends FINGER_CANCELED when a system gesture (Notification
+        -- Center, home indicator, back-swipe) steals the touch. Treat it
+        -- as a finger-up so the gesture detector doesn't stay stuck with
+        -- a contact down — that looks like a frozen app.
         local is_finger = event.type == SDL.SDL_EVENT_FINGER_UP
+            or event.type == SDL.SDL_EVENT_FINGER_CANCELED
+        if is_finger then
+            local finger_id = tonumber(event.tfinger.fingerID)
+            if not finger_pointers[finger_id] then
+                -- Never saw the matching FINGER_DOWN; nothing to release.
+                return false, C.EINTR
+            end
+        end
         local slot
         if is_finger then
             slot = getFingerSlot(event)
